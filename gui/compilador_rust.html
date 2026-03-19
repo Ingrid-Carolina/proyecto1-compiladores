@@ -179,9 +179,7 @@
 </div>
 
 <script>
-// ═══════════════════════════════════════════════
-//  LEXER (JavaScript — para la GUI)
-// ═══════════════════════════════════════════════
+
 const KEYWORDS = new Set(['fn','let','mut','if','else','while','for','return','in','true','false']);
 const TYPES    = new Set(['i32','f64','bool','char','str']);
 
@@ -237,9 +235,6 @@ function tokenize(code) {
   return tokens;
 }
 
-// ═══════════════════════════════════════════════
-//  PARSER (descenso recursivo → AST)
-// ═══════════════════════════════════════════════
 class Parser {
   constructor(tokens) {
     this.toks = tokens.filter(t=>t.type!=='COMMENT');
@@ -405,9 +400,7 @@ class Parser {
   }
 }
 
-// ═══════════════════════════════════════════════
-//  ÁRBOL → TEXTO INDENTADO
-// ═══════════════════════════════════════════════
+
 const SKIP = new Set(['Program','ExprStmt']);
 
 function nodeColor(label) {
@@ -433,9 +426,7 @@ function buildTree(node, depth) {
   return out;
 }
 
-// ═══════════════════════════════════════════════
-//  RUNNER PRINCIPAL
-// ═══════════════════════════════════════════════
+
 function runCompiler() {
   const code = document.getElementById('codeEditor').value;
   if (!code.trim()) { log('<span class="log-warn">⚠ Editor vacío.</span>'); return; }
@@ -491,10 +482,6 @@ function runCompiler() {
   }
 }
 
-// ═══════════════════════════════════════════════
-//  HELPERS
-// ═══════════════════════════════════════════════
-
 // Cambia entre las dos pestañas: tree y console
 function switchTab(tab) {
   ['tree','console'].forEach((n, i) => {
@@ -524,7 +511,7 @@ function esc(s) {
 function clearAll() {
   document.getElementById('codeEditor').value = '';
   document.getElementById('treeContainer').innerHTML =
-    '<div class="empty-state"><div class="empty-icon">🌳</div><span>Presiona <strong>▶ Compilar</strong></span></div>';
+    '<div class="empty-state"><div class="empty-icon"></div><span>Presiona <strong>▶ Compilar</strong></span></div>';
   clearConsole();
   document.getElementById('statusMsg').textContent = 'Listo';
   document.getElementById('statusMsg').className   = '';
@@ -562,12 +549,10 @@ fn main() {
 }`;
   runCompiler();
 }
-
 document.getElementById('codeEditor').addEventListener('input', () => {
   const l = document.getElementById('codeEditor').value.split('\n').length;
   document.getElementById('lineCount').textContent = l + ' líneas';
 });
-
 // Cargar ejemplo al abrir
 loadExample();
 </script>

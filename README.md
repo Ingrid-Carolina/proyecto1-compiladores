@@ -63,7 +63,6 @@ También puedes abrirlo manualmente haciendo doble clic en el archivo.
 La GUI permite:
 - Escribir código RUST directamente en el editor
 - Cargar archivos `.rs` desde tu computadora
-- Ver los tokens reconocidos con colores por categoría
 - Ver el árbol de derivación en formato texto (igual que la terminal)
 - Ver la consola de salida completa
 
