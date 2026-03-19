@@ -1,7 +1,7 @@
 # Proyecto 1 - Compiladores 1
 Lexer y Parser para subconjunto de RUST usando Flex y Bison en C.
 Alumna: Ingrid Carolina Hernández Inestroza — 12141186  
-Docente: Ing. Roman Pineda | Sección: 1401
+Docente: Ing. Roman Pineda | Sección: 467
 ---
 
 ## Estructura del Proyecto

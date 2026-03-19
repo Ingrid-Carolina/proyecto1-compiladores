@@ -481,7 +481,6 @@ function runCompiler() {
     log('\n<span class="log-error">>>> ANÁLISIS COMPLETADO CON ERRORES <<<</span>');
   }
 }
-
 // Cambia entre las dos pestañas: tree y console
 function switchTab(tab) {
   ['tree','console'].forEach((n, i) => {
@@ -489,25 +488,21 @@ function switchTab(tab) {
     document.getElementById('view-' + n).classList.toggle('active', n === tab);
   });
 }
-
 function clearConsole() {
   document.getElementById('consoleOutput').innerHTML = '';
 }
-
 function log(html) {
   const d = document.createElement('div');
   d.innerHTML = html;
   document.getElementById('consoleOutput').appendChild(d);
   document.getElementById('consoleOutput').scrollTop = 99999;
 }
-
 function esc(s) {
   return String(s)
     .replace(/&/g,'&amp;')
     .replace(/</g,'&lt;')
     .replace(/>/g,'&gt;');
 }
-
 function clearAll() {
   document.getElementById('codeEditor').value = '';
   document.getElementById('treeContainer').innerHTML =
