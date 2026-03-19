@@ -1,9 +1,18 @@
 %{
 #include <stdio.h>
 #include <string.h>
-#include "parser.tab.h"
+#include "../build/parser.tab.h"
+
 void showError();
-int line = 1; // Variable para contar líneas
+int line = 1;
+
+extern void save_token(const char *s);
+
+#define TOK(fmt, ...) do { \
+    char _b[256]; \
+    snprintf(_b, sizeof(_b), fmt, ##__VA_ARGS__); \
+    save_token(_b); \
+} while(0)
 %}
 
 numbers     ([0-9])+(\.[0-9]+)?
@@ -13,55 +22,55 @@ newline     [\n]
 
 %%
 
-{newline}          { line++; /* Incrementar contador de líneas */ }
-{whitespace}       { /* Ignorar espacios en blanco */ }
-"fn"               { printf("[TOKEN] FN (línea %d)\n", line); return FN; }
-"let"              { printf("[TOKEN] LET (línea %d)\n", line); return LET; }
-"mut"              { printf("[TOKEN] MUT (línea %d)\n", line); return MUT; }
-"if"               { printf("[TOKEN] IF (línea %d)\n", line); return IF; }
-"else"             { printf("[TOKEN] ELSE (línea %d)\n", line); return ELSE; }
-"while"            { printf("[TOKEN] WHILE (línea %d)\n", line); return WHILE; }
-"for"              { printf("[TOKEN] FOR (línea %d)\n", line); return FOR; }
-"return"           { printf("[TOKEN] RETURN (línea %d)\n", line); return RETURN; }
-"in"               { printf("[TOKEN] IN (línea %d)\n", line); return IN; }
-"true"             { printf("[TOKEN] IDENTIFIER (línea %d): true\n", line); yylval.name = strdup(yytext); return IDENTIFIER; }
-"false"            { printf("[TOKEN] IDENTIFIER (línea %d): false\n", line); yylval.name = strdup(yytext); return IDENTIFIER; }
-"{"                { printf("[TOKEN] LBRACE (línea %d)\n", line); return LBRACE; }
-"}"                { printf("[TOKEN] RBRACE (línea %d)\n", line); return RBRACE; }
-"("                { printf("[TOKEN] LPAREN (línea %d)\n", line); return LPAREN; }
-")"                { printf("[TOKEN] RPAREN (línea %d)\n", line); return RPAREN; }
-";"                { printf("[TOKEN] SEMICOLON (línea %d)\n", line); return SEMICOLON; }
-","                { printf("[TOKEN] COMMA (línea %d)\n", line); return COMMA; }
-"="                { printf("[TOKEN] ASSIGN (línea %d)\n", line); return ASSIGN; }
-"=="               { printf("[TOKEN] EQ (línea %d)\n", line); return EQ; }
-"!="               { printf("[TOKEN] NEQ (línea %d)\n", line); return NEQ; }
-"<"                { printf("[TOKEN] LT (línea %d)\n", line); return LT; }
-">"                { printf("[TOKEN] GT (línea %d)\n", line); return GT; }
-"+"                { printf("[TOKEN] PLUS (línea %d)\n", line); return PLUS; }
-"-"                { printf("[TOKEN] MINUS (línea %d)\n", line); return MINUS; }
-"*"                { printf("[TOKEN] MUL (línea %d)\n", line); return MUL; }
-"/"                { printf("[TOKEN] DIV (línea %d)\n", line); return DIV; }
-"->"               { printf("[TOKEN] ARROW (línea %d)\n", line); return ARROW; }
-"&&"               { printf("[TOKEN] AND (línea %d)\n", line); return AND; }
-"%"                { printf("[TOKEN] MOD (línea %d)\n", line); return MOD; }
-"i32"              { printf("[TOKEN] I32 (línea %d)\n", line); return I32; }
-"f64"              { printf("[TOKEN] F64 (línea %d)\n", line); return F64; }
-"bool"             { printf("[TOKEN] BOOL (línea %d)\n", line); return BOOL; }
-"char"             { printf("[TOKEN] CHAR_TYPE (línea %d)\n", line); return CHAR_TYPE; }
-"str"              { printf("[TOKEN] STR_TYPE (línea %d)\n", line); return STR_TYPE; }
-":"                { printf("[TOKEN] COLON (línea %d)\n", line); return COLON; }
-"//".*             { printf("[TOKEN] COMMENT (línea %d): %s\n", line, yytext); /* Ignorar comentarios */ }
-{alpha}            { printf("[TOKEN] IDENTIFIER (línea %d): %s\n", line, yytext); yylval.name = strdup(yytext); return IDENTIFIER; }
-{numbers}          { printf("[TOKEN] NUMBER (línea %d): %s\n", line, yytext); yylval.number = atof(yytext); return NUMBER; }
-\'([^\'\\]|\\.)\'  { printf("[TOKEN] CHAR (línea %d): %s\n", line, yytext); yylval.name = strdup(yytext); return CHAR; }
-\"([^\"\\]|\\.)*\" { printf("[TOKEN] STRING (línea %d): %s\n", line, yytext); yylval.name = strdup(yytext); return STRING; }
+{newline}          { line++; }
+{whitespace}       { }
+"fn"               { TOK("[TOKEN] FN          (linea %d)", line); return FN; }
+"let"              { TOK("[TOKEN] LET         (linea %d)", line); return LET; }
+"mut"              { TOK("[TOKEN] MUT         (linea %d)", line); return MUT; }
+"if"               { TOK("[TOKEN] IF          (linea %d)", line); return IF; }
+"else"             { TOK("[TOKEN] ELSE        (linea %d)", line); return ELSE; }
+"while"            { TOK("[TOKEN] WHILE       (linea %d)", line); return WHILE; }
+"for"              { TOK("[TOKEN] FOR         (linea %d)", line); return FOR; }
+"return"           { TOK("[TOKEN] RETURN      (linea %d)", line); return RETURN; }
+"in"               { TOK("[TOKEN] IN          (linea %d)", line); return IN; }
+"true"             { TOK("[TOKEN] IDENTIFIER  (linea %d): true",  line); yylval.n = strdup(yytext); return IDENTIFIER; }
+"false"            { TOK("[TOKEN] IDENTIFIER  (linea %d): false", line); yylval.n = strdup(yytext); return IDENTIFIER; }
+"{"                { TOK("[TOKEN] LBRACE      (linea %d)", line); return LBRACE; }
+"}"                { TOK("[TOKEN] RBRACE      (linea %d)", line); return RBRACE; }
+"("                { TOK("[TOKEN] LPAREN      (linea %d)", line); return LPAREN; }
+")"                { TOK("[TOKEN] RPAREN      (linea %d)", line); return RPAREN; }
+";"                { TOK("[TOKEN] SEMICOLON   (linea %d)", line); return SEMICOLON; }
+","                { TOK("[TOKEN] COMMA       (linea %d)", line); return COMMA; }
+"=="               { TOK("[TOKEN] EQ          (linea %d)", line); return EQ; }
+"!="               { TOK("[TOKEN] NEQ         (linea %d)", line); return NEQ; }
+"="                { TOK("[TOKEN] ASSIGN      (linea %d)", line); return ASSIGN; }
+"<"                { TOK("[TOKEN] LT          (linea %d)", line); return LT; }
+">"                { TOK("[TOKEN] GT          (linea %d)", line); return GT; }
+"+"                { TOK("[TOKEN] PLUS        (linea %d)", line); return PLUS; }
+"->"               { TOK("[TOKEN] ARROW       (linea %d)", line); return ARROW; }
+"-"                { TOK("[TOKEN] MINUS       (linea %d)", line); return MINUS; }
+"*"                { TOK("[TOKEN] MUL         (linea %d)", line); return MUL; }
+"/"                { TOK("[TOKEN] DIV         (linea %d)", line); return DIV; }
+"&&"               { TOK("[TOKEN] AND         (linea %d)", line); return AND; }
+"%"                { TOK("[TOKEN] MOD         (linea %d)", line); return MOD; }
+"i32"              { TOK("[TOKEN] I32         (linea %d)", line); return I32; }
+"f64"              { TOK("[TOKEN] F64         (linea %d)", line); return F64; }
+"bool"             { TOK("[TOKEN] BOOL        (linea %d)", line); return BOOL; }
+"char"             { TOK("[TOKEN] CHAR_TYPE   (linea %d)", line); return CHAR_TYPE; }
+"str"              { TOK("[TOKEN] STR_TYPE    (linea %d)", line); return STR_TYPE; }
+":"                { TOK("[TOKEN] COLON       (linea %d)", line); return COLON; }
+"//".*             { TOK("[TOKEN] COMMENT     (linea %d): %s", line, yytext); }
+{alpha}            { TOK("[TOKEN] IDENTIFIER  (linea %d): %s", line, yytext); yylval.n = strdup(yytext); return IDENTIFIER; }
+{numbers}          { TOK("[TOKEN] NUMBER      (linea %d): %s", line, yytext); yylval.number = atof(yytext); return NUMBER; }
+\'([^\'\\]|\\.)*\' { TOK("[TOKEN] CHAR        (linea %d): %s", line, yytext); yylval.n = strdup(yytext); return CHAR; }
+\"([^\"\\]|\\.)*\" { TOK("[TOKEN] STRING      (linea %d): %s", line, yytext); yylval.n = strdup(yytext); return STRING; }
 .                  { showError(); return OTHER; }
 
 %%
 
-void showError(){
-    printf("Error léxico: caracter no reconocido en línea %d: '%s'\n", line, yytext);
+void showError() {
+    char b[256];
+    snprintf(b, sizeof(b), "[ERROR LEXICO] Caracter no reconocido en linea %d: '%s'", line, yytext);
+    save_token(b);
 }
-int yywrap(){
-    return 1;
-}
+int yywrap() { return 1; }

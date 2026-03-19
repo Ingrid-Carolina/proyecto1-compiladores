@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compilador RUST — Lexer & Parser</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --border: #21262d;
+    --accent: #58a6ff;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --success: #3fb950;
+    --error: #f85149;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+  }
+  header {
+    background: var(--panel); border-bottom: 2px solid #388bfd33;
+    padding: 10px 20px; display: flex; align-items: center; gap: 16px; flex-shrink: 0;
+  }
+  .logo { font-size: 15px; font-weight: 700; color: var(--accent); }
+  .subtitle { font-size: 11px; color: var(--text-dim); }
+  .tabs { display: flex; gap: 4px; margin-left: auto; }
+  .tab-btn {
+    padding: 5px 13px; border: 1px solid var(--border); border-radius: 6px;
+    background: transparent; color: var(--text-dim); cursor: pointer; font-size: 12px; transition: all .15s;
+  }
+  .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #0d1117; font-weight: 700; }
+  .tab-btn:hover:not(.active) { border-color: var(--accent); color: var(--text); }
+
+  .workspace { display: flex; flex: 1; overflow: hidden; }
+
+  .left-panel { width: 440px; display: flex; flex-direction: column; border-right: 1px solid var(--border); flex-shrink: 0; }
+  .panel-header {
+    padding: 7px 14px; background: var(--panel); border-bottom: 1px solid var(--border);
+    font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .8px;
+  }
+  .file-actions {
+    padding: 7px 10px; background: #0a0d12; border-bottom: 1px solid var(--border);
+    display: flex; gap: 5px; flex-shrink: 0; flex-wrap: wrap;
+  }
+  .btn {
+    padding: 5px 11px; border: 1px solid var(--border); border-radius: 5px;
+    cursor: pointer; font-size: 11px; font-weight: 600; transition: all .15s;
+  }
+  .btn-run  { background:#1a4a2a; color:#3fb950; border-color:#2a6a3a; }
+  .btn-run:hover  { background:#1f5530; }
+  .btn-load { background:#1a2a4a; color:#58a6ff; border-color:#2a3a6a; }
+  .btn-load:hover { background:#1f3360; }
+  .btn-eg   { background:#2a2215; color:#e3b341; border-color:#4a3a1a; }
+  .btn-eg:hover   { background:#332818; }
+  .btn-clr  { background:#2a1515; color:#f85149; border-color:#4a2020; }
+  .btn-clr:hover  { background:#331818; }
+  #fileInput { display: none; }
+
+  #codeEditor {
+    flex: 1; background: #010409; color: #e6edf3;
+    font-family: 'Cascadia Code','Courier New',monospace;
+    font-size: 13px; line-height: 1.65; border: none; outline: none; resize: none; padding: 12px 14px;
+  }
+  .status-bar {
+    padding: 4px 14px; background: var(--panel); border-top: 1px solid var(--border);
+    font-size: 10px; color: var(--text-dim); display: flex; gap: 16px; flex-shrink: 0;
+  }
+  .status-ok  { color: var(--success); font-weight: 600; }
+  .status-err { color: var(--error);   font-weight: 600; }
+
+  .right-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .view-panel { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+  .view-panel.active { display: flex; }
+
+  /* ── TOKENS ── */
+  #tokensContainer {
+    flex: 1; overflow-y: auto; padding: 10px 12px;
+    display: flex; flex-wrap: wrap; gap: 5px; align-content: flex-start;
+  }
+  .token-chip {
+    display: inline-flex; flex-direction: column; gap: 1px; padding: 4px 8px;
+    border-radius: 5px; font-family: 'Cascadia Code',monospace; font-size: 11px;
+    border: 1px solid; cursor: default; transition: transform .1s;
+  }
+  .token-chip:hover { transform: scale(1.06); }
+  .token-chip .ttype { font-size: 8px; opacity:.65; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+  .token-chip .tval  { font-weight: 700; }
+  .token-chip .tline { font-size: 8px; opacity: .4; }
+  .tk-keyword  { background:#1e1430; border-color:#5a2d8a; color:#d2a8ff; }
+  .tk-ident    { background:#102030; border-color:#1a4060; color:#79c0ff; }
+  .tk-number   { background:#1e1500; border-color:#5a3800; color:#ffa657; }
+  .tk-string   { background:#0d1f0d; border-color:#1a4020; color:#7ee787; }
+  .tk-operator { background:#0d1f25; border-color:#1a3a45; color:#a5d6ff; }
+  .tk-delim    { background:#1a1700; border-color:#3d3200; color:#e3b341; }
+  .tk-type     { background:#0d1825; border-color:#1a3050; color:#6db8ff; }
+  .tk-error    { background:#1e0d0d; border-color:#5a1515; color:#ff7b72; }
+  .tk-comment  { background:#111111; border-color:#222222; color:#6e7681; }
+
+  /* ── ÁRBOL DE DERIVACIÓN — TEXTO ── */
+  #treeContainer {
+    flex: 1; overflow: auto; background: #010409; padding: 14px 20px;
+  }
+  /* Replica el look de la terminal de la imagen */
+  #treeOutput {
+    font-family: 'Cascadia Code','Courier New',monospace;
+    font-size: 13.5px; line-height: 1.8; white-space: pre; color: #c9d1d9;
+  }
+  /* Colores iguales a la terminal (verde azulado para los nodos estructurales) */
+  .tn-struct  { color: #56b6c2; }   /* Function, Params, Block, Statements, Then, Else */
+  .tn-kw      { color: #56b6c2; }   /* Let, Return, If, While, For, Condition */
+  .tn-call    { color: #56b6c2; }   /* Call, Args */
+  .tn-ident   { color: #abb2bf; }   /* Identifier */
+  .tn-literal { color: #abb2bf; }   /* Literal values */
+  .tn-op      { color: #56b6c2; }   /* BinaryOp */
+  .tn-err     { color: #e06c75; }   /* errors */
+
+  /* ── CONSOLA ── */
+  #consoleOutput {
+    flex: 1; overflow-y: auto; padding: 12px 14px;
+    font-family: 'Cascadia Code','Courier New',monospace;
+    font-size: 12px; line-height: 1.7; background: #010409;
+  }
+  .log-token   { color: #a5d6ff; }
+  .log-info    { color: var(--text-dim); }
+  .log-success { color: var(--success); }
+  .log-error   { color: var(--error); }
+  .log-warn    { color: #e3b341; }
+
+  .empty-state {
+    display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:8px; height:100%;
+    color:var(--text-dim); font-size:13px;
+  }
+  .empty-icon { font-size:40px; opacity:.25; }
+
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:#30363d; border-radius:3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">⚙ Compilador RUST — Analizador Léxico y Sintáctico</div>
+    <div class="subtitle">Universidad Tecnológica Centroamericana (UNITEC) · Compiladores 1</div>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('tokens')">🔤 Tokens</button>
+    <button class="tab-btn"        onclick="switchTab('tree')">🌳 Árbol de Derivación</button>
+    <button class="tab-btn"        onclick="switchTab('console')">📟 Consola</button>
+  </div>
+</header>
+
+<div class="workspace">
+  <!-- LEFT: editor -->
+  <div class="left-panel">
+    <div class="panel-header">Código Fuente — RUST</div>
+    <div class="file-actions">
+      <button class="btn btn-run"  onclick="runCompiler()">▶ Compilar</button>
+      <button class="btn btn-load" onclick="document.getElementById('fileInput').click()">📂 Cargar .rs</button>
+      <button class="btn btn-eg"   onclick="loadExample()">📋 Ejemplo</button>
+      <button class="btn btn-clr"  onclick="clearAll()">🗑 Limpiar</button>
+      <input type="file" id="fileInput" accept=".rs,.txt" onchange="loadFile(event)">
+    </div>
+    <textarea id="codeEditor" spellcheck="false"
+      placeholder="// Escribe o carga código RUST aquí..."></textarea>
+    <div class="status-bar">
+      <span id="statusMsg">Listo</span>
+      <span id="lineCount">0 líneas</span>
+      <span id="tokenCount">0 tokens</span>
+    </div>
+  </div>
+
+  <!-- RIGHT: panels -->
+  <div class="right-panel">
+
+    <!-- TOKENS -->
+    <div class="view-panel active" id="view-tokens">
+      <div class="panel-header">Análisis Léxico — Tokens Reconocidos</div>
+      <div id="tokensContainer">
+        <div class="empty-state"><div class="empty-icon">🔤</div>
+        <span>Presiona <strong>▶ Compilar</strong> para analizar el código</span></div>
+      </div>
+    </div>
+
+    <!-- ÁRBOL DE DERIVACIÓN — TEXTO -->
+    <div class="view-panel" id="view-tree">
+      <div class="panel-header">Árbol de Derivación Sintáctico</div>
+      <div id="treeContainer">
+        <div class="empty-state"><div class="empty-icon">🌳</div>
+        <span>Presiona <strong>▶ Compilar</strong> para ver el árbol</span></div>
+      </div>
+    </div>
+
+    <!-- CONSOLA -->
+    <div class="view-panel" id="view-console">
+      <div class="panel-header">Salida del Compilador</div>
+      <div id="consoleOutput">
+        <span class="log-info">// La salida del análisis aparecerá aquí...</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  LEXER
+// ═══════════════════════════════════════════════
+const KEYWORDS = new Set(['fn','let','mut','if','else','while','for','return','in','true','false']);
+const TYPES    = new Set(['i32','f64','bool','char','str']);
+
+function tokenize(code) {
+  const tokens = [];
+  let i = 0, lineNum = 1;
+  function adv() { const c=code[i++]; if(c==='\n') lineNum++; return c; }
+
+  while (i < code.length) {
+    const c = code[i], ln = lineNum;
+    if (/\s/.test(c)) { adv(); continue; }
+
+    // comment
+    if (c==='/' && code[i+1]==='/') {
+      let v=''; while(i<code.length && code[i]!=='\n') v+=adv();
+      tokens.push({type:'COMMENT',value:v.trim(),line:ln}); continue;
+    }
+    // string
+    if (c==='"') {
+      let v=adv(); while(i<code.length && code[i]!=='"') v+=adv();
+      if(i<code.length) v+=adv();
+      tokens.push({type:'STRING',value:v,line:ln}); continue;
+    }
+    // char
+    if (c==="'") {
+      let v=adv(); while(i<code.length && code[i]!=="'") v+=adv();
+      if(i<code.length) v+=adv();
+      tokens.push({type:'CHAR',value:v,line:ln}); continue;
+    }
+    // number
+    if (/[0-9]/.test(c)) {
+      let v=''; while(i<code.length && /[0-9.]/.test(code[i])) v+=adv();
+      tokens.push({type:'NUMBER',value:v,line:ln}); continue;
+    }
+    // identifier / keyword / type
+    if (/[a-zA-Z_]/.test(c)) {
+      let v=''; while(i<code.length && /[a-zA-Z0-9_]/.test(code[i])) v+=adv();
+      tokens.push({type: KEYWORDS.has(v)?'KEYWORD': TYPES.has(v)?'TYPE':'IDENTIFIER', value:v, line:ln}); continue;
+    }
+    // two-char operators
+    const two = code.slice(i,i+2);
+    if (['->','==','!=','&&','||','<=','>='].includes(two)) {
+      tokens.push({type:'OPERATOR',value:two,line:ln}); i+=2; continue;
+    }
+    // single char
+    const DELIMS  = new Set(['{','}','(',')',';',',','[',']']);
+    const OPCHARS = new Set(['+','-','*','/','%','=','<','>','!','&','|']);
+    if (DELIMS.has(c))  { tokens.push({type:'DELIM',   value:c,line:ln}); adv(); continue; }
+    if (c===':')        { tokens.push({type:'COLON',   value:c,line:ln}); adv(); continue; }
+    if (OPCHARS.has(c)) { tokens.push({type:'OPERATOR',value:c,line:ln}); adv(); continue; }
+    tokens.push({type:'ERROR',value:c,line:ln}); adv();
+  }
+  return tokens;
+}
+
+// ═══════════════════════════════════════════════
+//  PARSER  (recursive descent → AST)
+// ═══════════════════════════════════════════════
+class Parser {
+  constructor(tokens) {
+    this.toks = tokens.filter(t=>t.type!=='COMMENT');
+    this.pos = 0; this.errors = [];
+  }
+  peek(o=0) { return this.toks[this.pos+o]||{type:'EOF',value:'',line:0}; }
+  consume()  { return this.toks[this.pos++]||{type:'EOF',value:'',line:0}; }
+  matchVal(v){ return this.peek().value===v; }
+  matchType(t){ return this.peek().type===t; }
+  expect(v)  {
+    if(this.peek().value===v||this.peek().type===v) return this.consume();
+    this.errors.push(`Línea ${this.peek().line}: se esperaba '${v}', encontrado '${this.peek().value||'EOF'}'`);
+    return {type:'ERROR',value:'',line:0};
+  }
+  N(label,value='',children=[]) { return {label,value,children}; }
+
+  parseProgram() {
+    const stmts=[];
+    while(this.peek().type!=='EOF'){const s=this.parseStmt();if(s)stmts.push(s);}
+    return this.N('Program','',stmts);
+  }
+  parseStmt() {
+    const v=this.peek().value;
+    if(v==='fn')     return this.parseFn();
+    if(v==='let')    return this.parseLet();
+    if(v==='if')     return this.parseIf();
+    if(v==='while')  return this.parseWhile();
+    if(v==='for')    return this.parseFor();
+    if(v==='return') return this.parseReturn();
+    if(v===';')      {this.consume();return null;}
+    const e=this.parseExpr();
+    if(this.matchVal(';'))this.consume();
+    return e;
+  }
+  parseFn() {
+    this.consume();
+    const name=this.consume().value;
+    const n=this.N('Function',name);
+    this.expect('(');
+    const params=this.parseParams();
+    this.expect(')');
+    let ret=null;
+    if(this.matchVal('->')){this.consume();ret=this.consume().value;}
+    const block=this.parseBlock('Block');
+    n.children=[this.N('Params','',params)];
+    if(ret) n.children.push(this.N('ReturnType',ret));
+    n.children.push(block);
+    return n;
+  }
+  parseParams() {
+    const ps=[];
+    while(!this.matchVal(')')&&this.peek().type!=='EOF'){
+      if(this.matchType('IDENTIFIER')||this.matchType('TYPE')){
+        const pn=this.consume().value; let pt='';
+        if(this.matchVal(':')){this.consume();pt=this.consume().value;}
+        ps.push(this.N('Param',`${pn}: ${pt}`));
+      } else this.consume();
+      if(this.matchVal(','))this.consume();
+    }
+    return ps;
+  }
+  parseBlock(label='Block') {
+    const n=this.N(label); this.expect('{');
+    const stmts=[];
+    while(!this.matchVal('}')&&this.peek().type!=='EOF'){
+      const s=this.parseStmt();if(s)stmts.push(s);
+    }
+    this.expect('}');
+    n.children=[this.N('Statements','',stmts)];
+    return n;
+  }
+  parseLet() {
+    this.consume(); let mut=false;
+    if(this.matchVal('mut')){this.consume();mut=true;}
+    const name=this.consume().value;
+    const n=this.N('Let',name);
+    if(this.matchVal(':')){
+      this.consume();
+      const t=this.consume().value;
+      n.value=`${name} : ${t}`;
+    }
+    if(this.matchVal('=')){this.consume();n.children.push(this.parseExpr());}
+    if(this.matchVal(';'))this.consume();
+    return n;
+  }
+  parseIf() {
+    this.consume();
+    const n=this.N('If');
+    n.children.push(this.N('Condition','',[this.parseExpr()]));
+    n.children.push(this.parseBlock('Then'));
+    if(this.matchVal('else')){
+      this.consume();
+      if(this.matchVal('if')) n.children.push(this.parseIf());
+      else n.children.push(this.N('Else','',[this.parseBlock('Block')]));
+    }
+    return n;
+  }
+  parseWhile() {
+    this.consume();const n=this.N('While');
+    n.children=[this.N('Condition','',[this.parseExpr()]),this.parseBlock('Block')];return n;
+  }
+  parseFor() {
+    this.consume();const id=this.consume().value;const n=this.N('For',id);
+    if(this.matchVal('in'))this.consume();
+    n.children=[this.N('Range','',[this.parseExpr()]),this.parseBlock('Block')];return n;
+  }
+  parseReturn() {
+    this.consume();const n=this.N('Return');
+    if(!this.matchVal(';')&&!this.matchVal('}')&&this.peek().type!=='EOF')
+      n.children.push(this.parseExpr());
+    if(this.matchVal(';'))this.consume();return n;
+  }
+  parseExpr()  { return this.parseLogic(); }
+  parseLogic() {
+    let l=this.parseComp();
+    while(this.peek().value==='&&'||this.peek().value==='||'){
+      const op=this.consume().value;l=this.N('BinaryOp',op,[l,this.parseComp()]);}
+    return l;
+  }
+  parseComp() {
+    let l=this.parseAdd();
+    while(['<','>','==','!=','<=','>='].includes(this.peek().value)){
+      const op=this.consume().value;l=this.N('BinaryOp',op,[l,this.parseAdd()]);}
+    return l;
+  }
+  parseAdd() {
+    let l=this.parseMul();
+    while(this.peek().value==='+'||this.peek().value==='-'){
+      const op=this.consume().value;l=this.N('BinaryOp',op,[l,this.parseMul()]);}
+    return l;
+  }
+  parseMul() {
+    let l=this.parseUnary();
+    while(['*','/','%'].includes(this.peek().value)){
+      const op=this.consume().value;l=this.N('BinaryOp',op,[l,this.parseUnary()]);}
+    return l;
+  }
+  parseUnary() {
+    if(this.peek().value==='!'||this.peek().value==='-'){
+      const op=this.consume().value;return this.N('UnaryOp',op,[this.parsePrimary()]);}
+    return this.parsePrimary();
+  }
+  parsePrimary() {
+    const t=this.peek();
+    if(t.type==='NUMBER') {this.consume();return this.N('Literal(i32)',t.value);}
+    if(t.type==='STRING') {this.consume();return this.N('Literal(str)',t.value);}
+    if(t.type==='CHAR')   {this.consume();return this.N('Literal(char)',t.value);}
+    if(t.value==='true'||t.value==='false'){this.consume();return this.N('Literal(bool)',t.value);}
+    if(t.type==='IDENTIFIER'){
+      const nm=this.consume().value;
+      if(this.matchVal('(')){
+        this.consume();const args=[];
+        while(!this.matchVal(')')&&this.peek().type!=='EOF'){
+          args.push(this.parseExpr());if(this.matchVal(','))this.consume();}
+        this.expect(')');
+        return this.N('Call',nm,[this.N('Args','',args)]);
+      }
+      return this.N('Identifier',nm);
+    }
+    if(t.value==='('){this.consume();const e=this.parseExpr();this.expect(')');return e;}
+    if(t.type!=='EOF'){this.consume();return this.N('Unknown',t.value);}
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  ÁRBOL → TEXTO INDENTADO  (idéntico a terminal)
+// ═══════════════════════════════════════════════
+
+// Nodos que se "transparentan" (no se imprimen, solo sus hijos)
+const SKIP = new Set(['Program','ExprStmt']);
+
+// Nodos que se imprimen ellos pero sus hijos sin indent extra
+// (para que Statements no agregue nivel extra)
+// Todos los demás sí indentan normalmente.
+
+function nodeColor(label) {
+  // Todos los nodos estructurales en el mismo color verde-azulado que la terminal
+  const leaves = new Set(['Identifier','Literal(i32)','Literal(f64)',
+    'Literal(bool)','Literal(str)','Literal(char)','Unknown']);
+  if (leaves.has(label)) return 'tn-ident';
+  return 'tn-struct';   // verde azulado para todo lo demás
+}
+
+function buildTree(node, depth) {
+  if (!node) return '';
+  const INDENT = '  ';   // 2 espacios por nivel — igual que la imagen
+  let out = '';
+
+  if (SKIP.has(node.label)) {
+    for (const c of (node.children||[])) out += buildTree(c, depth);
+    return out;
+  }
+
+  const pad = INDENT.repeat(depth);
+  const cls = nodeColor(node.label);
+  // Format: "Label: value"  or just "Label"
+  const text = node.value ? `${node.label}: ${node.value}` : node.label;
+  out += `<span class="${cls}">${pad}${esc(text)}</span>\n`;
+
+  for (const c of (node.children||[])) out += buildTree(c, depth+1);
+  return out;
+}
+
+// ═══════════════════════════════════════════════
+//  RUNNER
+// ═══════════════════════════════════════════════
+function runCompiler() {
+  const code = document.getElementById('codeEditor').value;
+  if (!code.trim()) { log('<span class="log-warn">⚠ Editor vacío.</span>'); return; }
+
+  clearConsole();
+  document.getElementById('tokensContainer').innerHTML = '';
+  document.getElementById('treeContainer').innerHTML = '';
+
+  // ── Lexical ──
+  const tokens  = tokenize(code);
+  const filtered = tokens.filter(t => t.type !== 'COMMENT');
+
+  log('<span class="log-info">>>> ANÁLISIS LÉXICO Y SINTÁCTICO <<<</span>');
+  log('<span class="log-info">Procesando el archivo...</span>\n');
+  filtered.forEach(t => {
+    const cls = t.type==='ERROR'?'log-error':'log-token';
+    log(`<span class="${cls}">[TOKEN] ${t.type.padEnd(12)} línea ${String(t.line).padStart(3)}: <b>${esc(t.value)}</b></span>`);
+  });
+
+  // Token chips
+  const cont = document.getElementById('tokensContainer');
+  tokens.forEach(t => {
+    const ch = document.createElement('div');
+    ch.className = 'token-chip '+tchip(t.type);
+    ch.innerHTML = `<span class="ttype">${t.type}</span><span class="tval">${esc(t.value)}</span><span class="tline">L${t.line}</span>`;
+    ch.title = `Tipo: ${t.type} | Valor: ${t.value} | Línea: ${t.line}`;
+    cont.appendChild(ch);
+  });
+
+  // ── Syntax ──
+  log('\n<span class="log-info">— ÁRBOL DE DERIVACIÓN —</span>');
+  const parser = new Parser(tokens);
+  const ast    = parser.parseProgram();
+
+  parser.errors.forEach(e => log(`<span class="log-error">[ERROR SINTÁCTICO] ${e}</span>`));
+
+  // ── Render text tree ──
+  const html = buildTree(ast, 0);
+
+  const tc = document.getElementById('treeContainer');
+  const pre = document.createElement('pre');
+  pre.id = 'treeOutput';
+  pre.innerHTML = html || '<span class="tn-err">  (árbol vacío)</span>';
+  tc.appendChild(pre);
+
+  // also echo to console
+  pre.textContent.split('\n').filter(l=>l.trim())
+     .forEach(l => log(`<span class="log-token">${esc(l)}</span>`));
+
+  // Status
+  const lc = code.split('\n').length;
+  document.getElementById('lineCount').textContent  = lc+' líneas';
+  document.getElementById('tokenCount').textContent = filtered.length+' tokens';
+
+  const errs = parser.errors.length + tokens.filter(t=>t.type==='ERROR').length;
+  if (errs===0) {
+    document.getElementById('statusMsg').className='status-ok';
+    document.getElementById('statusMsg').textContent='✓ Compilación exitosa';
+    log('\n<span class="log-success">>>> ANÁLISIS COMPLETADO SIN ERRORES <<<</span>');
+  } else {
+    document.getElementById('statusMsg').className='status-err';
+    document.getElementById('statusMsg').textContent=`✗ ${errs} error(es)`;
+    log('\n<span class="log-error">>>> ANÁLISIS COMPLETADO CON ERRORES <<<</span>');
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════
+function switchTab(tab) {
+  ['tokens','tree','console'].forEach((n,i)=>{
+    document.querySelectorAll('.tab-btn')[i].classList.toggle('active',n===tab);
+    document.getElementById('view-'+n).classList.toggle('active',n===tab);
+  });
+}
+function clearConsole() { document.getElementById('consoleOutput').innerHTML=''; }
+function log(html) {
+  const d=document.createElement('div');d.innerHTML=html;
+  document.getElementById('consoleOutput').appendChild(d);
+  document.getElementById('consoleOutput').scrollTop=99999;
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function tchip(t) {
+  return {KEYWORD:'tk-keyword',IDENTIFIER:'tk-ident',NUMBER:'tk-number',
+    STRING:'tk-string',CHAR:'tk-string',OPERATOR:'tk-operator',
+    COLON:'tk-operator',DELIM:'tk-delim',TYPE:'tk-type',
+    ERROR:'tk-error',COMMENT:'tk-comment'}[t]||'tk-delim';
+}
+function clearAll() {
+  document.getElementById('codeEditor').value='';
+  document.getElementById('tokensContainer').innerHTML=
+    '<div class="empty-state"><div class="empty-icon">🔤</div><span>Presiona <strong>▶ Compilar</strong></span></div>';
+  document.getElementById('treeContainer').innerHTML=
+    '<div class="empty-state"><div class="empty-icon">🌳</div><span>Presiona <strong>▶ Compilar</strong></span></div>';
+  clearConsole();
+  document.getElementById('statusMsg').textContent='Listo';
+  document.getElementById('statusMsg').className='';
+  document.getElementById('lineCount').textContent='0 líneas';
+  document.getElementById('tokenCount').textContent='0 tokens';
+}
+function loadFile(e) {
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    document.getElementById('codeEditor').value=ev.target.result;
+    document.getElementById('statusMsg').textContent='Cargado: '+f.name;
+    runCompiler();
+  };
+  r.readAsText(f); e.target.value='';
+}
+function loadExample() {
+  document.getElementById('codeEditor').value=
+`fn suma(a: i32, b: i32) -> i32 {
+    return a + b;
+}
+
+fn main() {
+    let x: i32 = 10;
+    let y: i32 = 20;
+
+    if x < y {
+        let resultado = suma(x, y);
+    } else {
+        return;
+    }
+}`;
+  runCompiler();
+}
+
+document.getElementById('codeEditor').addEventListener('input',()=>{
+  const l=document.getElementById('codeEditor').value.split('\n').length;
+  document.getElementById('lineCount').textContent=l+' líneas';
+});
+
+loadExample();
+</script>
+</body>
+</html>
