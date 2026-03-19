@@ -122,13 +122,13 @@
 
 <header>
   <div>
-    <div class="logo">⚙ Compilador RUST — Analizador Léxico y Sintáctico</div>
-    <div class="subtitle">Universidad Tecnológica Centroamericana (UNITEC) · Compiladores 1</div>
+    <div class="logo">Compilador RUST — Analizador Léxico y Sintáctico</div>
+    <div class="subtitle">Universidad Tecnológica Centroamericana · Compiladores 1</div>
   </div>
   <!-- Solo dos pestañas: Árbol y Consola -->
   <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('tree')">🌳 Árbol de Derivación</button>
-    <button class="tab-btn"       onclick="switchTab('console')">📟 Consola</button>
+    <button class="tab-btn active" onclick="switchTab('tree')">Árbol de Derivación</button>
+    <button class="tab-btn"       onclick="switchTab('console')"> Consola</button>
   </div>
 </header>
 
@@ -138,10 +138,10 @@
   <div class="left-panel">
     <div class="panel-header">Código Fuente — RUST</div>
     <div class="file-actions">
-      <button class="btn btn-run"  onclick="runCompiler()">▶ Compilar</button>
-      <button class="btn btn-load" onclick="document.getElementById('fileInput').click()">📂 Cargar .rs</button>
-      <button class="btn btn-eg"   onclick="loadExample()">📋 Ejemplo</button>
-      <button class="btn btn-clr"  onclick="clearAll()">🗑 Limpiar</button>
+      <button class="btn btn-run"  onclick="runCompiler()"> Compilar</button>
+      <button class="btn btn-load" onclick="document.getElementById('fileInput').click()"> Cargar .rs</button>
+      <button class="btn btn-eg"   onclick="loadExample()"> Ejemplo</button>
+      <button class="btn btn-clr"  onclick="clearAll()"> Limpiar</button>
       <input type="file" id="fileInput" accept=".rs,.txt" onchange="loadFile(event)">
     </div>
     <textarea id="codeEditor" spellcheck="false"
@@ -161,8 +161,8 @@
       <div class="panel-header">Árbol de Derivación Sintáctico</div>
       <div id="treeContainer">
         <div class="empty-state">
-          <div class="empty-icon">🌳</div>
-          <span>Presiona <strong>▶ Compilar</strong> para ver el árbol</span>
+          <div class="empty-icon"></div>
+          <span>Presiona <strong> Compilar</strong> para ver el árbol</span>
         </div>
       </div>
     </div>
@@ -429,7 +429,7 @@ function buildTree(node, depth) {
 
 function runCompiler() {
   const code = document.getElementById('codeEditor').value;
-  if (!code.trim()) { log('<span class="log-warn">⚠ Editor vacío.</span>'); return; }
+  if (!code.trim()) { log('<span class="log-warn"> Editor vacío.</span>'); return; }
 
   clearConsole();
   document.getElementById('treeContainer').innerHTML = '';
@@ -473,11 +473,11 @@ function runCompiler() {
   const errs = parser.errors.length + tokens.filter(t=>t.type==='ERROR').length;
   if (errs === 0) {
     document.getElementById('statusMsg').className   = 'status-ok';
-    document.getElementById('statusMsg').textContent = '✓ Compilación exitosa';
+    document.getElementById('statusMsg').textContent = ' Compilación exitosa';
     log('\n<span class="log-success">>>> ANÁLISIS COMPLETADO SIN ERRORES <<<</span>');
   } else {
     document.getElementById('statusMsg').className   = 'status-err';
-    document.getElementById('statusMsg').textContent = `✗ ${errs} error(es)`;
+    document.getElementById('statusMsg').textContent = ` ${errs} error(es)`;
     log('\n<span class="log-error">>>> ANÁLISIS COMPLETADO CON ERRORES <<<</span>');
   }
 }
@@ -506,7 +506,7 @@ function esc(s) {
 function clearAll() {
   document.getElementById('codeEditor').value = '';
   document.getElementById('treeContainer').innerHTML =
-    '<div class="empty-state"><div class="empty-icon"></div><span>Presiona <strong>▶ Compilar</strong></span></div>';
+    '<div class="empty-state"><div class="empty-icon"></div><span>Presiona <strong> Compilar</strong></span></div>';
   clearConsole();
   document.getElementById('statusMsg').textContent = 'Listo';
   document.getElementById('statusMsg').className   = '';
